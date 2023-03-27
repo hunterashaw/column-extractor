@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>BigCommerce Product Import CSV Image Extractor</title>
+        <script src="papaparse.min.js"></script>
+    </head>
+    <body>
+        <h1>BigCommerce Product Import CSV Image Extractor</h1>
+        <input type="file" name="input" id="input" />
+        <script>
+            window.addEventListener('DOMContentLoaded', () => {
+                const fileInput = document.getElementById('input')
+
+                fileInput.addEventListener('change', e => {
+                    const file = fileInput.files[0]
+
+                    console.log('Started.')
+                    let first = true
+                    let output = ''
+
+                    function expandLine(line) {
+                        const defaultValue = Object.fromEntries(
+                            Object.keys(line).map(key => [key, ''])
+                        )
+
+                        const newLines = [
+                            {
+                                ...line,
+                                'Item Type': 'Product',
+                                'Image URL (Import)': '',
+                                'Image is Thumbnail': '',
+                                'Image Sort Order': ''
+                            }
+                        ]
+                        let counter = 1
+                        Object.entries(line).forEach(([key, value]) => {
+                            if (key.startsWith('image') && Boolean(value)) {
+                                newLines.push({
+                                    ...defaultValue,
+                                    'Item Type': 'Image',
+                                    'Image URL (Import)': value,
+                                    'Image is Thumbnail':
+                                        counter === 1 ? 'TRUE' : 'FALSE',
+                                    'Image Sort Order': counter - 1
+                                })
+                                counter++
+                            }
+                        })
+                        output +=
+                            (!first ? '\r\n' : '') +
+                            Papa.unparse(newLines, { header: first })
+
+                        if (first) first = false
+                    }
+
+                    Papa.parse(file, {
+                        header: true,
+                        step: function (results) {
+                            if (results.errors.length)
+                                console.error('Errors:', results.errors)
+                            expandLine(results.data)
+                        },
+                        complete: function () {
+                            const link = document.createElement('a')
+                            link.href = URL.createObjectURL(
+                                new Blob([output], {
+                                    type: 'text/csv;charset=utf-8;'
+                                })
+                            )
+                            link.target = '_blank'
+                            link.download = 'output.csv'
+                            link.click()
+                        },
+                        error: function (error) {
+                            console.error(error)
+                        }
+                    })
+                })
+            })
+        </script>
+    </body>
+</html>
